@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>mini桌球</title>
+    <script src="js/three.min.js"></script>
+    <script src="js/OrbitControls.js"></script>
+    <style type="text/css">
+        div#canvas-frame {
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            height: 600px;
+            background-color: #EEEEEE;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+    </style>
+    <script>
+        var isMoving = true;
+        var radius = 15;
+        var v = 0;
+        var a = -0.3;
+        var m = 5;
+        maxHeight = 300;
+        var len = 1;
+        var Len = 1;
+        var friction = 0.02;        //摩擦力造成的加速度
+        var collisionFactor = 0.6;         //碰撞系数
+        var mySphere = new Array(len);
+        var mySphereclass = new Array(len);
+        var width;
+        var height;
+        var renderer;
+
+        var intersects
+        var rollOverMesh;
+        var objects = [];
+        var directionLine;
+        var v_new_line;
+                    
+
+				
+        function initThree() {
+            width = document.getElementById('canvas-frame').clientWidth;
+            height = document.getElementById('canvas-frame').clientHeight;
+            renderer = new THREE.WebGLRenderer({
+                antialias : true
+            });
+            renderer.setSize(width, height);
+            document.getElementById('canvas-frame').appendChild(renderer.domElement);
+            renderer.setClearColor(0xFFFFFF, 1.0);
+        }
+
+        var camera;
+        function initCamera() {
+            camera = new THREE.PerspectiveCamera(45, width / height, 1, 2000);
+            camera.position.x = 0;
+            camera.position.y = 800;
+            camera.position.z = 800;
+            camera.up.x = 0;
+            camera.up.y = 1;
+            camera.up.z = 0;
+            camera.lookAt({
+                x : 0,
+                y : 0,
+                z : 0
+            });
+        }
+
+        var scene;
+        function initScene() {
+            scene = new THREE.Scene();
+        }
+
+        var light;
+        function initLight() {
+            // A start
+            light = new THREE.PointLight(0xFFFFFF);
+            light.position.set(600, 800, 1000);
+            scene.add(light);
+            // A end
+        }
+
+        function MySphereClass(Sphere, v){
+            this.Sphere = Sphere;
+            this.v = v || new THREE.Vector3(0,0,0);
+            this.m = m || 0;
+        }
+
+        function initMove(num,vpara){
+
+            mySphereclass[num].Sphere.position.y = radius;
+            //renderer.render(scene, camera);
+            mySphereclass[num].v = vpara;
+            // new THREE.Vector3(Math.random()*10,0,Math.random()*10)
+        }
+
+        function myMove(){
+            for(num=0;num<len;num++){
+                if(mySphereclass[num].v!==0||Math.abs(mySphereclass[num].Sphere.position.x) + radius > 300||Math.abs(mySphereclass[num].Sphere.position.z) + radius > 300) {
+                    //速度更新
+                    if (Math.abs(mySphereclass[num].v) < 0.01) {
+                        mySphereclass[num].v = new THREE.Vector3(0,0,0);
+                    }else{
+                        if(mySphereclass[num].v.x > friction){
+                            mySphereclass[num].v.x -= friction;
+                        }else if(mySphereclass[num].v.x < -friction){
+                            mySphereclass[num].v.x += friction;
+                        }else{
+                            mySphereclass[num].v.x = 0;
+                        }
+                        if(mySphereclass[num].v.z > friction){
+                            mySphereclass[num].v.z -= friction;
+                        }else if(mySphereclass[num].v.z < -friction){
+                            mySphereclass[num].v.z += friction;
+                        }else{
+                            mySphereclass[num].v.z = 0;
+                        }
+                    }
+
+                    //位置更新
+                    mySphereclass[num].Sphere.position.x += mySphereclass[num].v.x;
+                    mySphereclass[num].Sphere.position.z += mySphereclass[num].v.z;
+
+                    if(mySphereclass[num].Sphere.position.y !== 5055)
+                    {
+                        //墙壁碰撞检测
+                        if ((mySphereclass[num].Sphere.position.x + radius)> 400) {
+                            mySphereclass[num].Sphere.position.x = 400 - radius;
+                            mySphereclass[num].v.x = -mySphereclass[num].v.x * collisionFactor;
+                        }else if((mySphereclass[num].Sphere.position.x - radius)< -400){
+                            mySphereclass[num].Sphere.position.x = -400 + radius;
+                            mySphereclass[num].v.x = -mySphereclass[num].v.x * collisionFactor;
+                        }
+                        if((mySphereclass[num].Sphere.position.z + radius)> 300) {
+                            mySphereclass[num].Sphere.position.z = 300 - radius;
+                            mySphereclass[num].v.z = -mySphereclass[num].v.z * collisionFactor;
+                        }else if((mySphereclass[num].Sphere.position.z - radius)< -300) {
+                            mySphereclass[num].Sphere.position.z = -300 + radius;
+                            mySphereclass[num].v.z = -mySphereclass[num].v.z * collisionFactor;
+                        }
+                    }
+                    
+                }
+            }
+        }
+
+        function Vector3Sub(v1, v2) {
+            return new THREE.Vector3(v1.x-v2.x,v1.y-v2.y,v1.z-v2.z);
+        }
+        function Vector3Add(v1, v2) {
+            return new THREE.Vector3(v1.x+v2.x,v1.y+v2.y,v1.z+v2.z);
+        }
+        function Vector3Multiply(v1, v2){
+            temp = v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+            return temp;
+        }
+        function Vector3Mul(v, num){
+            return new THREE.Vector3(v.x * num, v.y * num, v.z * num);
+        }
+        function Vector3Length(v){
+            length = Math.sqrt(Math.pow(v.x, 2) + Math.pow(v.y, 2) + Math.pow(v.z, 2));
+            return length;
+        }
+        function Rotate(v,theta){
+            x = Math.cos(theta) * v.x - Math.sin(theta) * v.z;
+            z = Math.cos(theta) * v.z + Math.sin(theta) * v.x;
+            return new THREE.Vector3(x,0,z);
+        }
+
+        function myCollision(){
+            for(num=0;num<len;num++) {
+                var position0 = mySphereclass[num].Sphere.position;
+                for (j = 0; j < len; j++) {
+                    //计算各个球之间的距离，若小于半径，发生碰撞
+                    var position1 = mySphereclass[j].Sphere.position;
+                    if (j < num) {
+                        distance_x = position0.x - position1.x;
+                        distance_y = position0.y - position1.y;
+                        distance_z = position0.z - position1.z;
+                        distance = Math.sqrt(Math.pow(distance_x, 2) + Math.pow(distance_y, 2) + Math.pow(distance_z, 2));
+
+                        if(distance < radius * 2) {
+                            while (distance < radius * 2) {
+//                            alert("发生碰撞！！");
+                                //将两个球在碰撞方向上拉开
+
+                                mySphereclass[num].Sphere.position.x = mySphereclass[num].Sphere.position.x - mySphereclass[num].v.x * 0.1;
+                                mySphereclass[j].Sphere.position.x -= mySphereclass[j].v.x * 0.01;
+                                mySphereclass[num].Sphere.position.z = mySphereclass[num].Sphere.position.z - mySphereclass[num].v.z * 0.1;
+                                mySphereclass[j].Sphere.position.z -= mySphereclass[j].v.z * 0.01;
+//                            temp_vx = mySphereclass[i].v.x;
+//                            mySphereclass[i].v.x = mySphereclass[num].v.x;
+                                position0 = mySphereclass[num].Sphere.position;
+                                position1 = mySphereclass[j].Sphere.position;
+                                distance_x = position0.x - position1.x;
+                                distance_y = position0.y - position1.y;
+                                distance_z = position0.z - position1.z;
+                                distance = Math.sqrt(Math.pow(distance_x, 2) + Math.pow(distance_y, 2) + Math.pow(distance_z, 2));
+                            }
+
+                            collideDirection = Vector3Sub(position0, position1);//                            mySphereclass[num].v.x = temp_vx;
+
+                            unitCollideDirection = Vector3Mul(collideDirection, 1 / Vector3Length(collideDirection));
+                            verticalUnitCollideDirection = Vector3Mul(Rotate(collideDirection, Math.PI / 2), 1 / Vector3Length(Rotate(collideDirection, Math.PI / 2)));
+                            v1_num = Vector3Mul(unitCollideDirection, Vector3Multiply(mySphereclass[num].v, unitCollideDirection));
+                            v2_num = Vector3Mul(verticalUnitCollideDirection, Vector3Multiply(mySphereclass[num].v, verticalUnitCollideDirection));
+
+                            v1_i = Vector3Mul(unitCollideDirection, Vector3Multiply(mySphereclass[j].v, unitCollideDirection));
+                            v2_i = Vector3Mul(verticalUnitCollideDirection, Vector3Multiply(mySphereclass[j].v, verticalUnitCollideDirection));
+
+                            mySphereclass[num].v = Vector3Add(Vector3Add(v1_i,Vector3Mul(v1_num,0.02)), v2_num);
+                            mySphereclass[j].v = Vector3Add(Vector3Add(v1_num,Vector3Mul(v1_i,0.02)), v2_i);
+                        }
+                    }
+                }
+            }
+        }
+
+        var mylength = 0;
+        function initSphere(positionpara,colorpara,vpara) {
+
+            geometry = new THREE.SphereGeometry(radius, 100, 100);
+            material = new THREE.MeshLambertMaterial({color: colorpara});
+            mySphere[mylength] = new THREE.Mesh(geometry, material);
+            mySphere[mylength].position.copy(positionpara);
+            mySphereclass[mylength] = new MySphereClass(mySphere[mylength],new THREE.Vector3(0,0,0));
+            scene.add(mySphere[mylength]);
+
+            initMove(mylength,vpara);
+
+            mylength += 1;
+            if(mylength < len)
+                setTimeout(function(){
+                    initSphere();
+                },0);
+        }
+
+
+        var raycaster = new THREE.Raycaster();
+        var mouse = new THREE.Vector2();
+        function render() {
+
+            myMove();
+            myCollision();
+            if(isPlay)
+            {
+                play();
+            }
+            var geometry = new THREE.Geometry();
+            geometry.vertices.push(mySphereclass[0].Sphere.position);
+            if ( intersects!=null&&intersects.length > 0 ) {
+                var intersect = intersects[0]; 
+                geometry.vertices.push(intersect.point);
+            }else{
+                geometry.vertices.push(mySphereclass[0].Sphere.position);
+            }
+            scene.remove(v_new_line);
+            v_new_line = new THREE.Line( geometry, material )
+            scene.add(v_new_line);
+
+            width = document.getElementById('canvas-frame').clientWidth;
+            height = document.getElementById('canvas-frame').clientHeight;
+            renderer.setSize(width, height);
+            renderer.render(scene,camera);
+            requestAnimationFrame(render);
+        }
+        function render2() {
+            renderer.render(scene,camera);
+        }
+
+        var isPlay = false;
+        function threeStart() {
+            initThree();
+            initCamera();
+            initScene();
+            initLight();
+            initObject();
+            renderer.clear();
+            initInput();
+            initSphere(new THREE.Vector3(-200,0,0),0xffffff,new THREE.Vector3(0,0,0));
+            
+            render();
+            var controls = new THREE.OrbitControls(camera);
+        }
+
+
+        var mouse3D = new THREE.Vector3();
+        var mousedownTime = 0;
+        function initInput() {
+            window.addEventListener( 'mousedown', function( event ) {
+                var myDate = new Date();
+			    mousedownTime = myDate.getTime();        //获取当前时间(从1970.1.1开始的毫秒数)	
+            }, false );
+            window.addEventListener( 'mouseup', function( event ) {
+                var myDate = new Date();
+			    velocity_para = (myDate.getTime() - mousedownTime)/500;        //获取当前时间(从1970.1.1开始的毫秒数)	
+                if(velocity_para > 2)
+                {
+                    velocity_para = 2;
+                }
+                if ( intersects.length > 0 ) {
+					var intersect = intersects[0];
+                    var v_new = Vector3Sub(intersect.point,mySphereclass[0].Sphere.position);
+                    mySphereclass[0].v=Vector3Mul(Vector3Mul(v_new,1/Vector3Length(v_new)*20),velocity_para);
+				}
+                
+            }, false );
+            window.addEventListener( 'mousemove', function( event ) {
+                event.preventDefault();
+                mouse.x = ( event.clientX / width ) * 2 - 1;
+	            mouse.y = - ( event.clientY / height ) * 2 + 1;
+				
+				raycaster.setFromCamera( mouse, camera );
+				intersects = raycaster.intersectObjects(objects);
+				if ( intersects.length > 0 ) {
+					var intersect = intersects[ 0 ];
+					rollOverMesh.position.copy( intersect.point );
+				}
+            }, false );
+
+            window.addEventListener( 'keydown', function( event ) {
+                if(event.keyCode === 49) {
+                    // alert("1");
+                    len = len + Len;
+                    position_temp = new THREE.Vector3(Math.random()*800-400,0,Math.random()*600-300);
+                    color_temp = 0xffffff*Math.random();
+                    v_temp = new THREE.Vector3(Math.random()*10,0,Math.random()*10);
+                    initSphere(position_temp,color_temp,v_temp);
+                }
+            }, false );
+            window.addEventListener( 'keydown', function( event ) {
+                if(event.keyCode === 50) {
+                    // alert("1");
+                    len = len + Len;
+                    position_temp = new THREE.Vector3(200,0,0);
+                    color_temp = 0xffffff*Math.random();
+                    v_temp = new THREE.Vector3(0,0,0);
+                    initSphere(position_temp,color_temp,v_temp);
+
+                    len = len + Len;
+                    position_temp = new THREE.Vector3(227.5,0,17);
+                    color_temp = 0xffffff*Math.random();
+                    v_temp = new THREE.Vector3(0,0,0);
+                    initSphere(position_temp,color_temp,v_temp);
+
+                    len = len + Len;
+                    position_temp = new THREE.Vector3(227.5,0,-17);
+                    color_temp = 0xffffff*Math.random();
+                    v_temp = new THREE.Vector3(0,0,0);
+                    initSphere(position_temp,color_temp,v_temp);
+
+                    len = len + Len;
+                    position_temp = new THREE.Vector3(255,0,34);
+                    color_temp = 0xffffff*Math.random();
+                    v_temp = new THREE.Vector3(0,0,0);
+                    initSphere(position_temp,color_temp,v_temp);
+
+                    len = len + Len;
+                    position_temp = new THREE.Vector3(255,0,0);
+                    color_temp = 0xffffff*Math.random();
+                    v_temp = new THREE.Vector3(0,0,0);
+                    initSphere(position_temp,color_temp,v_temp);
+
+                    len = len + Len;
+                    position_temp = new THREE.Vector3(255,0,-34);
+                    color_temp = 0xffffff*Math.random();
+                    v_temp = new THREE.Vector3(0,0,0);
+                    initSphere(position_temp,color_temp,v_temp);
+                    
+                    isPlay = true;
+                }
+            }, false );
+        }
+
+        var x_temp = 1000;
+        function play()
+        {
+            for(num=1;num<len;num++) {
+                var position0 = mySphereclass[num].Sphere.position;
+                var positions = new Array(4);
+                positions[0] = new THREE.Vector3(400,radius,300);
+                positions[1]= new THREE.Vector3(400,radius,-300);
+                positions[2] = new THREE.Vector3(-400,radius,300);
+                positions[3] = new THREE.Vector3(-400,radius,-300);
+                for (j = 0; j < 4; j++) {
+                    //计算各个球之间的距离，若小于半径，发生碰撞
+                    var position1 = positions[j];
+                    
+                    distance_x = position0.x - position1.x;
+                    distance_y = position0.y - position1.y;
+                    distance_z = position0.z - position1.z;
+                    distance = Math.sqrt(Math.pow(distance_x, 2) + Math.pow(distance_y, 2) + Math.pow(distance_z, 2));
+
+                    if(distance < radius * 3) {
+                        scene.remove(mySphereclass[num].Sphere);
+                        mySphereclass[num].Sphere.position.x = x_temp;
+                        mySphereclass[num].Sphere.position.y = 5055;
+                        x_temp += 100;
+                    }
+                }
+            }
+        }
+
+        function createObjectMaterial() {    
+            var c = Math.floor(Math.random() * (1 << 24));    
+            return new THREE.MeshPhongMaterial({ color: 000000 });    
+        }   
+
+        function initObject() {
+            geometry = new THREE.CubeGeometry(620, 820, 10);
+            var materials = [];
+            for (var i = 0; i < 6; ++i) {
+                materials.push(new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    map: THREE.ImageUtils.loadTexture('obj/2.jpg', {}, function() {
+                        renderer.render(scene, camera);
+                    }),
+                    overdraw: true
+                }));
+            }
+
+            var plane = new THREE.Mesh( geometry, materials );
+            plane.rotation.z += Math.PI * 0.5;
+            plane.rotation.x += Math.PI * 0.5;
+            plane.position.y = -5;
+            plane.position.x = 0;
+            plane.position.z = 0;
+            scene.add( plane );
+
+            geometry = new THREE.CubeGeometry(520, 40, 10);
+            material = new THREE.MeshBasicMaterial( {color: 0x555555,wireframe : true} );
+            plane = new THREE.Mesh( geometry, material );
+            plane.rotation.z += Math.PI * 0.5;
+            plane.rotation.x += Math.PI * 0.5;
+            plane.rotation.y += Math.PI * 0.5;
+            plane.position.y = 20;
+            plane.position.x = 405;
+            plane.position.z = 0;
+            scene.add( plane );
+
+            geometry = new THREE.CubeGeometry(720, 40, 10);
+            material = new THREE.MeshBasicMaterial( {color: 0x555555,wireframe : true} );
+            plane = new THREE.Mesh( geometry, material );
+            plane.position.y = 20;
+            plane.position.x = 0;
+            plane.position.z = 305;
+            scene.add( plane );
+
+            geometry = new THREE.CubeGeometry(520, 40, 10);
+            material = new THREE.MeshBasicMaterial( {color: 0x555555,wireframe : true} );
+            plane = new THREE.Mesh( geometry, material );
+            plane.rotation.z += Math.PI * 0.5;
+            plane.rotation.x += Math.PI * 0.5;
+            plane.rotation.y += Math.PI * 0.5;
+            plane.position.y = 20;
+            plane.position.x = -405;
+            plane.position.z = 0;
+            scene.add( plane );
+
+            geometry = new THREE.CubeGeometry(720, 40, 10);
+            material = new THREE.MeshBasicMaterial( {color: 0x555555,wireframe : true} );
+            plane = new THREE.Mesh( geometry, material );
+            plane.position.y = 20;
+            plane.position.x = 0;
+            plane.position.z = -305;
+            scene.add( plane );
+
+
+            var bottle = new THREE.Mesh(new THREE.CylinderGeometry(radius*1.5, radius*1.5, 1, 20, 1), createObjectMaterial());
+            bottle.position.x = 385;
+            bottle.position.y = 0;
+            bottle.position.z = 285;
+            scene.add( bottle );
+
+            var bottle = new THREE.Mesh(new THREE.CylinderGeometry(radius*1.5, radius*1.5, 1, 20, 1), createObjectMaterial());
+            bottle.position.x = 385;
+            bottle.position.y = 0;
+            bottle.position.z = -285;
+            scene.add( bottle );
+
+            var bottle = new THREE.Mesh(new THREE.CylinderGeometry(radius*1.5, radius*1.5, 1, 20, 1), createObjectMaterial());
+            bottle.position.x = -385;
+            bottle.position.y = 0;
+            bottle.position.z = 285;
+            scene.add( bottle );
+
+            var bottle = new THREE.Mesh(new THREE.CylinderGeometry(radius*1.5, radius*1.5, 1, 20, 1), createObjectMaterial());
+            bottle.position.x = -385;
+            bottle.position.y = 0;
+            bottle.position.z = -285;
+            scene.add( bottle );
+
+            //小红方块初始化
+            var rollOverGeo = new THREE.BoxGeometry( 10, 10, 10 );
+            rollOverMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000, opacity: 0.5, transparent: true } );
+			rollOverMesh = new THREE.Mesh( rollOverGeo, rollOverMaterial );
+			scene.add( rollOverMesh );
+            //鼠标坐标转换平面初始化
+            var geometry = new THREE.PlaneBufferGeometry( 1000, 1000 );
+            geometry.rotateX( - Math.PI / 2 );
+            plane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { visible: false } ) );
+            scene.add( plane );
+            objects.push( plane );
+            //速度方向
+            var material = new THREE.LineBasicMaterial( { color: 0xff00ff } );
+            var geometry = new THREE.Geometry();
+            geometry.vertices.push(new THREE.Vector3(120,120,0));
+            geometry.vertices.push(new THREE.Vector3(0,0,0));
+            v_new_line = new THREE.Line( geometry, material )
+            scene.add(v_new_line);
+        }
+    </script>
+</head>
+
+<body onload="threeStart();">
+<div id="canvas-frame"></div>
+</body>
+</html>
